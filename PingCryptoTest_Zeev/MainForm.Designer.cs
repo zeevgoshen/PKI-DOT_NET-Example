@@ -35,7 +35,7 @@ namespace PingCryptoTest_Zeev
             this.mBtnEncrypt = new System.Windows.Forms.Button();
             this.mBtnDecrypt = new System.Windows.Forms.Button();
             this.mBtnCreateKey = new System.Windows.Forms.Button();
-            this.lblMessages = new System.Windows.Forms.Label();
+            //this.lblMessages = new System.Windows.Forms.ListView();
 
             this.SuspendLayout();
             // 
@@ -79,11 +79,14 @@ namespace PingCryptoTest_Zeev
             this.mBtnCreateKey.Click += new System.EventHandler(this.btnCreateAsmKey_OnClick);
             this.mBtnCreateKey.Font = new Font(mBtnCreateKey.Font.FontFamily, 10);
 
-
-            lblMessages.Location = new Point(13, 13);
-            lblMessages.Size = new System.Drawing.Size(180, 30);
-            lblMessages.Text = "";
-
+            // 
+            // lblMessages
+            // 
+            //lblMessages.Location = new Point(280, 50);
+            //lblMessages.Size = new System.Drawing.Size(400, 200);
+            //lblMessages.Text = "";
+            //lblMessages.BorderStyle = BorderStyle.Fixed3D;
+            //lblMessages.Width = 200;
 
 
             dynamicStatusStrip = new System.Windows.Forms.StatusStrip();
@@ -94,7 +97,7 @@ namespace PingCryptoTest_Zeev
             dynamicStatusStrip.ForeColor = Color.Gray;
             dynamicStatusStrip.SizingGrip = false;
             
-            lblStatus = new ToolStripStatusLabel("Ze'ev");
+            lblStatus = new ToolStripStatusLabel("");
             lblStatus.BorderSides = ToolStripStatusLabelBorderSides.All;
             lblStatus.BorderStyle = Border3DStyle.Sunken;
 
@@ -119,7 +122,7 @@ namespace PingCryptoTest_Zeev
             this.Controls.Add(this.mBtnEncrypt);
             this.Controls.Add(this.mBtnDecrypt);
             this.Controls.Add(this.mBtnCreateKey);
-            this.Controls.Add(this.lblMessages);
+            //this.Controls.Add(this.lblMessages);
             this.Controls.Add(this.dynamicStatusStrip);
             
             this.Name = "MainForm";

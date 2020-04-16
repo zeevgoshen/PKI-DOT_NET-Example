@@ -21,13 +21,20 @@ namespace PingCryptoTest_Zeev
 
         
         Button                  mBtnBrowse, mBtnEncrypt, mBtnDecrypt, mBtnCreateKey;
-        Label                   lblMessages;
+        //ListView                lblMessages;
         StatusStrip             dynamicStatusStrip;
         ToolStripStatusLabel    lblStatus;
         string[]                files;
-        const string            iconPath = "icon.ico";
+        const string            iconPath                = "icon.ico";
         utilManager             mUtil;
-        const string            mCancelledTxt = "Browse cancelled.";
+        const string            mCancelledTxt           = "Browse cancelled.";
+        const string            mOpenFolderErrMsg       = "OpenFolderDialog did not complete.";
+        const string            mNoFilesMsg             = "No Files found. Click 'Browse...' for .txt files...";
+        const string            mEncryptDoneMsg         = "Encrypt done.";
+        const string            mEncryptExceptionMsg    = "Encrypt task returned 0.";
+        const string            mKeyCreatedMSg          = "Key pair created.";
+        const string            mDecryptDoneMsg         = "Decrypt done.";
+        const string            mDecryptExceptionMsg    = "Decrypt failed.";
         Task<int>               longRunningEncryptTask, longRunningDecryptTask;
         
 
@@ -46,40 +53,52 @@ namespace PingCryptoTest_Zeev
         }
 
         
-        private void createOrOpenFolderDialog()
+        private int OpenFolderDialog()
         {
-            
-            mUtil = utilManager.GetInstance();
+            try
+            {
+                mUtil = utilManager.GetInstance();
 
-            string res = mUtil.startDialog(ref files);
+                string res = mUtil.startDialog(ref files);
 
-            lblStatus.Text = (res != null) ? res : mCancelledTxt;
+                lblStatus.Text = (res != null) ? res : mCancelledTxt;
 
-            Debug.WriteLine("Folder Dialog done.");
+                return 1;
 
+
+            } catch(Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
 
         private void btnBrowse_OnClick(object sender, System.EventArgs e)
         {
-            createOrOpenFolderDialog();
-            Debug.WriteLine("");
-            //lblStatus.Text = "Browse cancelled.";
+            int retVal = OpenFolderDialog();
+            
+            if (retVal != 1)
+            {
+                throw new Exception(mOpenFolderErrMsg);
+            }
 
         }
 
 
         private void btnCreateAsmKey_OnClick(object sender, System.EventArgs e)
         {
-            Debug.WriteLine("btnCreateAsmKey_OnClick start.");
-            // Stores a key pair in the key container.
-            //
-
+            //Debug.WriteLine("btnCreateAsmKey_OnClick start.");
             mUtil = utilManager.GetInstance();
 
-            mUtil.CreateAsymKey();
+            try
+            {
+                // creates and stores a key pair in the key container.
+                mUtil.CreateAsymKey(utilManager.GetKeyName);
+            } catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
 
-            lblStatus.Text = "Key pair created.";
-
+            lblStatus.Text = mKeyCreatedMSg;
         }
 
          
@@ -87,56 +106,41 @@ namespace PingCryptoTest_Zeev
 
         private async void btnEncrypt_OnClick(object sender, System.EventArgs e)
         {
-            Debug.WriteLine("btnEncrypt_OnClick started.");
-            Debug.WriteLine("Debug.WriteLine btnEncrypt_OnClick fired");
+            //Debug.WriteLine("btnEncrypt_OnClick started.");
 
             if (files == null || files.ToString() == string.Empty)
             {
-                MessageBox.Show("No Files found. Click 'Browse...' for .txt files...");
-
-                Debug.WriteLine("No Files.");
+                MessageBox.Show(mNoFilesMsg);
                 return;
-                // throw new exception
             }
 
-
             for (int i=0;i< files.Length; i++) {
-                //longRunningTask1 = EncryptFile(files[i]);
 
                 longRunningEncryptTask = EncryptFile(files[i]); 
 
-                //int[] result = await Task.WhenAll(longRunningTask1, longRunningTask2);
                 int[] result = await Task.WhenAll(longRunningEncryptTask);
 
                 if (result.Contains(1))
                 {
-                    lblStatus.Text = "Encrypt done.";
-                    //TODO: handle error if one of the tasks returned 0.
-                    //x = longRunningTask1.Result;
-                    //longRunningTask1 = null;
-                    //longRunningTask2 = null;
-
-                    
-                }
-                    
+                    lblStatus.Text = mEncryptDoneMsg;
+                } else
+                {
+                    throw new Exception(mEncryptExceptionMsg);
+                }                    
             }
-
-            Debug.WriteLine("btnEncrypt_OnClick ended.");
+            //Debug.WriteLine("btnEncrypt_OnClick ended.");
         }
 
         private async void btnDecrypt_OnClick(object sender, System.EventArgs e)
         {
-            Debug.WriteLine("btnDecrypt_OnClick started.");
+            //Debug.WriteLine("btnDecrypt_OnClick started.");
            
 
             if (files == null || files.ToString() == string.Empty)
             {
-                MessageBox.Show("No Files found. Click 'Browse...' for .txt files...");
-
+                MessageBox.Show(mNoFilesMsg);
                 return;
-                // throw new exception
             }
-
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -146,48 +150,57 @@ namespace PingCryptoTest_Zeev
 
                 if (result.Contains(1))
                 {
-
-                    lblStatus.Text = "Decrypt done.";
-                    
+                    lblStatus.Text = mDecryptDoneMsg;
+                }
+                else
+                {
+                    throw new Exception(mDecryptExceptionMsg);
                 }
             }
 
             Array.Clear(files, 0, files.Length);
             files = null;
-            Debug.WriteLine("btnDecrypt_OnClick ended.");
+            //Debug.WriteLine("btnDecrypt_OnClick ended.");
         }
 
         private async Task<int> DecryptFile(string inFile)
         {
-            mUtil = utilManager.GetInstance();
+            try
+            {
+                mUtil = utilManager.GetInstance();
+                longRunningDecryptTask = mUtil.TryDecrypt(inFile);
 
-            longRunningDecryptTask = mUtil.TryDecrypt(inFile);
-
-
-            int result = await longRunningDecryptTask;
-            //await mUtil.TryDecrypt(inFile);
-            Debug.WriteLine("DecryptFile result: " + result);
-            return result;
+                int result = await longRunningDecryptTask;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return 0;
+            }
         }
 
 
         public async Task<int> EncryptFile(string inFile)
         {
-            Debug.WriteLine("EncryptFile started.");
+            try
+            {
+                mUtil = utilManager.GetInstance();
+                longRunningEncryptTask = mUtil.TryEncrypt(inFile);
 
-            // TODO:
-            // 1) decide between AES or this RijndaelManaged
+                int result = await longRunningEncryptTask;
 
-            mUtil = utilManager.GetInstance();
-
-            
-            longRunningEncryptTask = mUtil.TryEncrypt(inFile);
-
-            int result = await longRunningEncryptTask;
-            //use the result 
-            Debug.WriteLine("EncryptFile result: " + result);
-            return result;
-
+                if (result == 1)
+                {
+                    lblStatus.Text = mEncryptDoneMsg;
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return 0;
+            }
         }
 
         
