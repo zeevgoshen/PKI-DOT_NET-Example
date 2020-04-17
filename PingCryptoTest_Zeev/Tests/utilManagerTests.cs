@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace PingCryptoTest_Zeev.Tests
 {
@@ -15,6 +16,7 @@ namespace PingCryptoTest_Zeev.Tests
     {
 
         const string mTestPath = @"C:\testing_pki\osx_vm_instructions.txt";
+        const string mTestDecryptPath = @"C:\testing_pki\dec\osx_vm_instructions.txt";
         int res;
         string[] files;
 
@@ -52,25 +54,28 @@ namespace PingCryptoTest_Zeev.Tests
         }
 
 
+        [TestCase]
+        public void testCreateAsymKeys()
+        {
+            utilManager firstManager = utilManager.GetInstance();
+            string empty = "new";
+
+            Assert.Fail(empty, firstManager.CreateAsymKey(null));
+
+        }
         
 
         [TestCase]
         public void decryptTest()
         {
-            string[] files = new string[2];
-
-            utilManager firstManager = utilManager.GetInstance();
-
-            //string res = firstManager.startDialog(ref files);
-
-            //Assert.AreSame();
-            //firstManager.CreateAsymKey,
-            //firstManager.startDialog,
-            //firstManager.TryDecrypt,
-            //firstManager.TryEncrypt
-
-            //Assert.
-
+            
+            try
+            {
+                FileAssert.AreEqual(mTestPath, mTestDecryptPath);
+            } catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString()); 
+            }
         }
 
     }
