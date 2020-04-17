@@ -15,10 +15,9 @@ namespace PingCryptoTest_Zeev.src
     {
         private static readonly object syncLock = new object();
         private static utilManager mInstance;
-        
+
 
         // Declare CspParmeters and RsaCryptoServiceProvider
-        // objects with global scope of your Form class.
         //
         CspParameters cspp = new CspParameters();
         RSACryptoServiceProvider rsa;
@@ -29,47 +28,53 @@ namespace PingCryptoTest_Zeev.src
         #region Path vars 
 
         //const string DecrFolder = @"F:\roms\Desktop\Zeev\0_zeev\";
-        const string    decPref = @"\dec\";
+        const string decPref = @"\dec\";
         //const string    EncrFolder = @"F:\roms\Desktop\Zeev\0_zeev\enc\";
 
-        const string    mTestPath = @"F:\roms\Desktop\Zeev\0_zeev\";
-        const string    encPref = @"enc\";
-        const string    encExtension = ".enc";
+        const string mTestPath = @"F:\roms\Desktop\Zeev\0_zeev\";
+        const string encPref = @"enc\";
+        const string encExtension = ".enc";
 
-        const string    encPref2 = @"\enc";
-        string          fileName = string.Empty;
-        int             startFileNameIndex;
-        string          newPath;
-        string          outFile;
+        const string encPref2 = @"\enc";
+        string fileName = string.Empty;
+        int startFileNameIndex;
+        string newPath;
+        string outFile;
 
 
         #endregion
 
-
-
-        // Public key file
-        const string PubKeyFile = @"F:\roms\Desktop\Zeev\0_zeev\rsaPublicKey.txt";
-
         // Key container name for
         // private/public key value pair.
-        const string keyName = "Key01";
-
-
+        private string      keyName             = "Key01";
+        const string        mFilesFoundMsg      = "Files found: ";
+        const string        mKeyPairCreated     = "KeyPair created in Container - ";
+        const string        mErrorMsg           = "Error caused exception: ";
+        const string        mUserCancelledMsg   = "User cancelled.";
+        const string        mFileTypes          = "*.txt";
+        const string        mGeneralMessage     = "Message";
+        const string        mBackSlashEscaped   = "\\";
+        const string        mKeyNameNullErrMsg  = "Key name is null.";
         private utilManager()
         {
 
         }
 
+
+        public static string GetKeyName { get { return mInstance.keyName; } set { mInstance.keyName = value; } }
+        
         public static utilManager GetInstance()
         {
-            
-            lock(syncLock)
+            if (mInstance == null) // first check
             {
-                if (mInstance == null)
+                lock (syncLock)
                 {
-                    mInstance = new utilManager();
-                }
+                    if (mInstance == null) // second check
+                    {
+                        mInstance = new utilManager();
+                    }
 
+                }
             }
             return mInstance;
         }
@@ -87,32 +92,21 @@ namespace PingCryptoTest_Zeev.src
 
             if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(mOpenFolderDialog.SelectedPath))
             {
-                // TODO: verify this is truly recursive, maybe handle infinite loop in case of symlink from documentation of SearchOption.AllDirectories.
-                //
-
+      
                 try { 
-                    files = Directory.GetFiles(mOpenFolderDialog.SelectedPath, "*.txt", SearchOption.AllDirectories);
-                    System.Windows.Forms.MessageBox.Show("Files found: " + files.Length.ToString(), "Message");
+                    files = Directory.GetFiles(mOpenFolderDialog.SelectedPath, mFileTypes, SearchOption.AllDirectories);
+                    System.Windows.Forms.MessageBox.Show(mFilesFoundMsg + files.Length.ToString(), mGeneralMessage);
                     return mOpenFolderDialog.SelectedPath;
                 }
-                catch (Exception ex) { Debug.WriteLine(ex.Message); return "Error caused exception."; }
-
+                catch (Exception ex) {
+                    return mErrorMsg + ex.Message; }
             } else
             {
-                // if we previously selected a working folder, use it.
-                if (files.Length > 0)
-                    return files[0].Substring(0, files[0].LastIndexOf("\\"));
+                // Cancel pressed case
+                if ((files != null) && (files.Length > 0))
+                    return files[0].Substring(0, files[0].LastIndexOf(mBackSlashEscaped));
 
-                //*****************************************
-                // For debug purposes only, test path:
-                files = Directory.GetFiles(mTestPath, "*.txt", SearchOption.AllDirectories);
-                //
-                /////*****************************************
-
-                // TODO:
-                // lblStatus.text
-                Debug.WriteLine("Browsing cancelled.");
-                return "User cancelled.";
+                return mUserCancelledMsg;
             }
 
             
@@ -120,168 +114,165 @@ namespace PingCryptoTest_Zeev.src
 
         internal async Task<int> TryDecrypt(string inFile)
         {
-            RijndaelManaged rjndl = new RijndaelManaged();
-            rjndl.KeySize = 256;
-            rjndl.BlockSize = 256;
-            rjndl.Mode = CipherMode.CBC;
-
-            // Create byte arrays to get the length of
-            // the encrypted key and IV.
-            // These values were stored as 4 bytes each
-            // at the beginning of the encrypted package.
-            byte[] LenK = new byte[4];
-            byte[] LenIV = new byte[4];
-
-            // Consruct the file name for the decrypted file.
-            //string outFile = DecrFolder + inFile.Substring(0, inFile.LastIndexOf(".")) + ".txt";
-
-            string decPath = inFile.Substring(0, inFile.LastIndexOf("\\")) + decPref;//@"\dec\";
-            //string outFile = inFile.Substring(0, inFile.LastIndexOf(".")) + ".txt";
-
-            // Use FileStream objects to read the encrypted
-            // file (inFs) and save the decrypted file (outFs).
-            //using (FileStream inFs = new FileStream(EncrFolder + inFile, FileMode.Open))
-
-            string encPath = inFile.Substring(0, inFile.LastIndexOf("\\")) + encPref2;// @"\enc";
-            encPath += inFile.Substring(inFile.LastIndexOf("\\"));
-            fileName = inFile.Substring(inFile.LastIndexOf("\\"));
-
-            string newinFile = encPath.Substring(0, encPath.LastIndexOf(".")) + encExtension;//".enc";
-
-            //newinFile = inFile.Substring(0, inFile.LastIndexOf("\\")) + decPref;
-
-            if (!File.Exists(newinFile))
+            try
             {
-                Debug.WriteLine("File does not exists.");
+
+                RijndaelManaged rjndl = new RijndaelManaged();
+                rjndl.KeySize = 256;
+                rjndl.BlockSize = 256;
+                rjndl.Mode = CipherMode.CBC;
+
+                // Create byte arrays to get the length of
+                // the encrypted key and IV.
+                // These values were stored as 4 bytes each
+                // at the beginning of the encrypted package.
+                byte[] LenK = new byte[4];
+                byte[] LenIV = new byte[4];
+
+                // Consruct the file name for the decrypted file.
+                string decPath = inFile.Substring(0, inFile.LastIndexOf(mBackSlashEscaped)) + decPref;
+             
+
+                string encPath = inFile.Substring(0, inFile.LastIndexOf(mBackSlashEscaped)) + encPref2; 
+                encPath += inFile.Substring(inFile.LastIndexOf(mBackSlashEscaped));
+                fileName = inFile.Substring(inFile.LastIndexOf(mBackSlashEscaped));
+
+                string newinFile = encPath.Substring(0, encPath.LastIndexOf(".")) + encExtension;
+
+                if (!File.Exists(newinFile))
+                {
+                    return 0;
+                }
+                // newinFile is the encoded file to be read and decrypted
+                //
+                using (FileStream inFs = new FileStream(newinFile, FileMode.Open))
+                {
+
+                    inFs.Seek(0, SeekOrigin.Begin);
+                    inFs.Seek(0, SeekOrigin.Begin);
+                    inFs.Read(LenK, 0, 3);
+                    inFs.Seek(4, SeekOrigin.Begin);
+                    inFs.Read(LenIV, 0, 3);
+
+                    // Convert the lengths to integer values.
+                    int lenK = BitConverter.ToInt32(LenK, 0);
+                    int lenIV = BitConverter.ToInt32(LenIV, 0);
+
+                    // Determine the start postition of
+                    // the ciphter text (startC)
+                    // and its length(lenC).
+                    int startC = lenK + lenIV + 8;
+                    int lenC = (int)inFs.Length - startC;
+
+                    // Create the byte arrays for
+                    // the encrypted Rijndael key,
+                    // the IV, and the cipher text.
+                    byte[] KeyEncrypted = new byte[lenK];
+                    byte[] IV = new byte[lenIV];
+
+                    // Extract the key and IV
+                    // starting from index 8
+                    // after the length values.
+                    inFs.Seek(8, SeekOrigin.Begin);
+                    inFs.Read(KeyEncrypted, 0, lenK);
+                    inFs.Seek(8 + lenK, SeekOrigin.Begin);
+                    inFs.Read(IV, 0, lenIV);
+                    Directory.CreateDirectory(decPath);
+
+
+                    //TODO: remove the 3 lines pf rsa
+                    //
+                    cspp.KeyContainerName = keyName;
+                    cspp.Flags = CspProviderFlags.UseMachineKeyStore;
+                    rsa = new RSACryptoServiceProvider(cspp);
+                    rsa.PersistKeyInCsp = true;
+
+                    //RSACryptoServiceProvider.UseMachineKeyStore = true;
+
+                    // Use RSACryptoServiceProvider
+                    // to decrypt the Rijndael key.
+                    byte[] KeyDecrypted = await Task.Run(() => rsa.Decrypt(KeyEncrypted, false));
+
+                    // Decrypt the key.
+                    ICryptoTransform transform = rjndl.CreateDecryptor(KeyDecrypted, IV);
+
+
+                    // Decrypt the cipher text from
+                    // from the FileSteam of the encrypted
+                    // file (inFs) into the FileStream
+                    // for the decrypted file (outFs).
+                    using (FileStream outFs = new FileStream(decPath + fileName, FileMode.Create))
+                    {
+
+
+                        int count = 0;
+                        int offset = 0;
+
+                        // blockSizeBytes can be any arbitrary size.
+                        int blockSizeBytes = rjndl.BlockSize / 8;
+                        byte[] data = new byte[blockSizeBytes];
+
+                        // By decrypting a chunk a time,
+                        // you can save memory and
+                        // accommodate large files.
+
+                        // Start at the beginning
+                        // of the cipher text.
+                        inFs.Seek(startC, SeekOrigin.Begin);
+                        using (CryptoStream outStreamDecrypted = new CryptoStream(outFs, transform, CryptoStreamMode.Write))
+                        {
+                            do
+                            {
+                                count = inFs.Read(data, 0, blockSizeBytes);
+                                offset += count;
+                                outStreamDecrypted.Write(data, 0, count);
+                            }
+                            while (count > 0);
+
+                            outStreamDecrypted.FlushFinalBlock();
+                            outStreamDecrypted.Close();
+                        }
+                        outFs.Close();
+                    }
+                    inFs.Close();
+                    return 1;
+             
+                }
+            }
+            catch (Exception ex)
+            {
                 return 0;
             }
-            // newinFile is the encoded file to be read and decrypted
-            //
-            using (FileStream inFs = new FileStream(newinFile, FileMode.Open))
+        }
+
+        internal int CreateAsymKey(string keyName)
+        {
+            try
             {
+                if (keyName == null)
+                    throw new Exception(mKeyNameNullErrMsg);
 
-                inFs.Seek(0, SeekOrigin.Begin);
-                inFs.Seek(0, SeekOrigin.Begin);
-                inFs.Read(LenK, 0, 3);
-                inFs.Seek(4, SeekOrigin.Begin);
-                inFs.Read(LenIV, 0, 3);
-
-                // Convert the lengths to integer values.
-                int lenK = BitConverter.ToInt32(LenK, 0);
-                int lenIV = BitConverter.ToInt32(LenIV, 0);
-
-                // Determine the start postition of
-                // the ciphter text (startC)
-                // and its length(lenC).
-                int startC = lenK + lenIV + 8;
-                int lenC = (int)inFs.Length - startC;
-
-                // Create the byte arrays for
-                // the encrypted Rijndael key,
-                // the IV, and the cipher text.
-                byte[] KeyEncrypted = new byte[lenK];
-                byte[] IV = new byte[lenIV];
-
-                // Extract the key and IV
-                // starting from index 8
-                // after the length values.
-                inFs.Seek(8, SeekOrigin.Begin);
-                inFs.Read(KeyEncrypted, 0, lenK);
-                inFs.Seek(8 + lenK, SeekOrigin.Begin);
-                inFs.Read(IV, 0, lenIV);
-                Directory.CreateDirectory(decPath);
-
-
-                //TODO: remove the 3 lines pf rsa
-                //
                 cspp.KeyContainerName = keyName;
                 cspp.Flags = CspProviderFlags.UseMachineKeyStore;
                 rsa = new RSACryptoServiceProvider(cspp);
                 rsa.PersistKeyInCsp = true;
-                
-                //RSACryptoServiceProvider.UseMachineKeyStore = true;
 
-                // Use RSACryptoServiceProvider
-                // to decrypt the Rijndael key.
-                byte[] KeyDecrypted = await Task.Run(() => rsa.Decrypt(KeyEncrypted, false));
+                MessageBox.Show(mKeyPairCreated + keyName);
 
-                // Decrypt the key.
-                ICryptoTransform transform = rjndl.CreateDecryptor(KeyDecrypted, IV);
-
-                // Decrypt the cipher text from
-                // from the FileSteam of the encrypted
-                // file (inFs) into the FileStream
-                // for the decrypted file (outFs).
-                using (FileStream outFs = new FileStream(decPath + fileName, FileMode.Create))
-                {
-
-                    int count = 0;
-                    int offset = 0;
-
-                    // blockSizeBytes can be any arbitrary size.
-                    int blockSizeBytes = rjndl.BlockSize / 8;
-                    byte[] data = new byte[blockSizeBytes];
-
-                    // By decrypting a chunk a time,
-                    // you can save memory and
-                    // accommodate large files.
-
-                    // Start at the beginning
-                    // of the cipher text.
-                    inFs.Seek(startC, SeekOrigin.Begin);
-                    using (CryptoStream outStreamDecrypted = new CryptoStream(outFs, transform, CryptoStreamMode.Write))
-                    {
-                        do
-                        {
-                            count = inFs.Read(data, 0, blockSizeBytes);
-                            offset += count;
-                            outStreamDecrypted.Write(data, 0, count);
-                        }
-                        while (count > 0);
-
-                        outStreamDecrypted.FlushFinalBlock();
-                        outStreamDecrypted.Close();
-                    }
-                    outFs.Close();
-                }
-                inFs.Close();
                 return 1;
+
+            } catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return 0;
             }
-        }
-
-        internal void CreateAsymKey()
-        {
-            cspp.KeyContainerName = keyName;
-            cspp.Flags = CspProviderFlags.UseMachineKeyStore;
-            rsa = new RSACryptoServiceProvider(cspp);
-            rsa.PersistKeyInCsp = true;
-
-            
-            //RSACryptoServiceProvider.UseMachineKeyStore = true;
-
-            Debug.WriteLine(cspp.KeyContainerName);
-
-            //if (rsa.PublicOnly == true)
-            //{
-            //    //lblMessages.Text = "Key: " + cspp.KeyContainerName + " - Public Only";
-            //    Debug.WriteLine(lblMessages.Text);
-            //}
-            //else
-            //{
-            //    //lblMessages.Text = "Key: " + cspp.KeyContainerName + " - Full Key Pair";
-            //    Debug.WriteLine(lblMessages.Text);
-            //}
-
             //RSAParameters rsaKeyInfo = rsa.ExportParameters(false);
 
         }
 
         public async Task<int> TryEncrypt(string inFile)
         {
-
-            //await Task.Run(){
-
-            //}
+            
             try
             {
 
@@ -300,14 +291,9 @@ namespace PingCryptoTest_Zeev.src
                 cspp.Flags = CspProviderFlags.UseMachineKeyStore;
                 rsa = new RSACryptoServiceProvider(cspp);
                 rsa.PersistKeyInCsp = true;
-                
-
-
-                //byte[] keyEncrypted = rsa.Encrypt(rjndl.Key, false);
+                              
                 byte[] keyEncrypted = await Task.Run(() =>  rsa.Encrypt(rjndl.Key, false));
 
-                // var keyEncrypted = await Task.Run(() => { rsa.Encrypt(rjndl.Key, false) })
-            
 
                 // Create byte arrays to contain
                 // the length values of the key and IV.
@@ -342,8 +328,7 @@ namespace PingCryptoTest_Zeev.src
 
                 #endregion 
 
-
-
+                
                 // If the file already exists, it will be overwritten
                 using (FileStream outFs = new FileStream(outFile, FileMode.Create))
                 {
@@ -392,7 +377,7 @@ namespace PingCryptoTest_Zeev.src
             }
             catch(Exception ex)
             {
-                Debug.WriteLine(ex.Message);
+                //Debug.WriteLine(ex.Message);
                 return 0;
             }
 
